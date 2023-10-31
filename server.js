@@ -24,7 +24,6 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../sistem-antrian-online/src/authentic', 'AuLogin.jsx'));
 });
 
-//untuk login
 app.post('/', (req, res) => {
     const sql = "SELECT * FROM user WHERE `email` = ? AND `password` = ?";
     db.query(sql, [req.body.email, req.body.password], (err, data) => {
@@ -42,6 +41,56 @@ app.post('/', (req, res) => {
         }
     })
 });
+
+// register
+app.get('/Register', (req, res) => {
+    res.sendFile(path.join(__dirname, '../sistem-antrian-online/src/authentic', 'AuRegister.jsx'));
+});
+
+app.post('/Register', (req, res) => {
+    const userSql = "INSERT INTO user (role, email, password) VALUES (?, ?, ?)";
+    const userParams = ["pelanggan", req.body.email, req.body.password];
+
+    db.beginTransaction(function (err) {
+        if (err) {
+            console.error("Transaction begin error:", err);
+            return res.status(500).json("Error");
+        }
+
+        db.query(userSql, userParams, (err, userData) => {
+            if (err) {
+                console.error("User query error:", err);
+                db.rollback(function () {
+                    return res.status(500).json("Error");
+                });
+            } else {
+                const id_users = userData.insertId; // Mendapatkan ID pengguna yang baru saja dimasukkan
+
+                const pelangganSql = "INSERT INTO pelanggan (nama_pelanggan, id_users) VALUES (?, ?)";
+                const pelangganParams = [req.body.nama_pelanggan, id_users];
+
+                db.query(pelangganSql, pelangganParams, (err, pelangganData) => {
+                    if (err) {
+                        db.rollback(function () {
+                            return res.status(500).json("Error");
+                        });
+                    }
+
+                    db.commit(function (err) {
+                        if (err) {
+                            db.rollback(function () {
+                                return res.status(500).json("Error");
+                            });
+                        }
+
+                        return res.status(200).json("Data inserted successfully");
+                    });
+                });
+            }
+        });
+    });
+});
+
 
 // Menambahkan rute
 app.get('/dashboard/history-teller', (req, res) => {
